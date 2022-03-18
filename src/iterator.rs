@@ -49,8 +49,8 @@ impl ThreadIter {
     pub fn eval(&mut self) -> Option<isize> {
         if let Some(instruct)=self.read() {
             match ByteCode::eval(self, instruct) {
-                Ok(value) => {},
-                Err(error) => {self.alive = false},
+                Err(_) => {self.alive = false},
+                _ => (),
             }
         }
     }
