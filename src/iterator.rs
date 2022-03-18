@@ -27,12 +27,12 @@ impl ThreadIter {
     }
 
     fn goto(&self, index: usize) -> Self {
-        self.location = index;
+        self.index = index;
         self
     }
 
     fn next(&self) -> Option<Instruction> {
-        self.location = self.location + 1;
-        self.bytecode[self.location]
+        self.index = self.index + 1;
+        self.bytecode[self.index]
     }
 }
