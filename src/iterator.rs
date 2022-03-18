@@ -11,12 +11,12 @@ struct ThreadIter {
     stack: Vec<isize>
 }
 
-mod ThreadIter {
+impl ThreadIter {
 
     pub fn new(
         code: &ByteCode,
         index: usize
-    ) -> ThreadIter {
+    ) -> Self {
         ThreadIter {
             alive: true,
             location: index,
@@ -24,17 +24,14 @@ mod ThreadIter {
             stack: vec![]
         }
     }
-}
 
-impl ThreadIter {
-
-    fn goto(self: &Self, index: usize) -> &Self {
-        *self.location = index;
+    fn goto(&self, index: usize) -> Self {
+        self.location = index;
         self
     }
 
-    fn next(self: &Self) -> Some(Instruction) {
-        *self.location = *self.location + 1;
+    fn next(&self) -> Some(Instruction) {
+        self.location = self.location + 1;
         self.bytecode[self.location]
     }
 }
