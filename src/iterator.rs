@@ -26,13 +26,21 @@ impl ThreadIter {
         }
     }
 
-    fn goto(&self, index: usize) -> Self {
+    fn read(&self) -> Option<Instruction> {
+        let line = self.bytecode.get(self.index);
+        if let Some(_)=line {} else {
+            self.active = false;
+        };
+        line
+    }
+
+    pub fn goto(&self, index: usize) -> Self {
         self.index = index;
         self
     }
 
-    fn next(&self) -> Option<Instruction> {
+    pub fn next(&self) -> Self {
         self.index = self.index + 1;
-        self.bytecode[self.index]
+        self
     }
 }
