@@ -30,7 +30,7 @@ impl ThreadIter {
         self
     }
 
-    fn next(&self) -> Option(Instruction) {
+    fn next(&self) -> Option<Instruction> {
         self.location = self.location + 1;
         self.bytecode[self.location]
     }
