@@ -5,7 +5,7 @@ use crate::bytecode::{
 
 struct ThreadIter {
     alive: bool,
-    location: usize,
+    index: usize,
     bytecode: &ByteCode,
     scope: HashMap<&str, isize>,
     stack: Vec<isize>
@@ -14,12 +14,13 @@ struct ThreadIter {
 impl ThreadIter {
 
     pub fn new(
-        code: &ByteCode,
+        bytecode: &ByteCode,
         index: usize
     ) -> Self {
         ThreadIter {
             alive: true,
-            location: index,
+            index: index,
+            bytecode: bytecode,
             scope: HashMap::new(),
             stack: vec![]
         }
