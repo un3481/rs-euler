@@ -28,12 +28,12 @@ impl ThreadIter {
         }
     }
 
-    pub fn goto(&self, index: usize) -> Self {
+    pub fn goto(&mut self, index: usize) -> Self {
         self.index = index;
         self
     }
 
-    pub fn next(&self) -> Self {
+    pub fn next(&mut self) -> Self {
         self.index = self.index + 1;
         self
     }
@@ -46,14 +46,10 @@ impl ThreadIter {
         line
     }
 
-    pub fn eval() -> Option<isize> {
+    pub fn eval(&mut self) -> Option<isize> {
         if let Some(instruct)=self.read() {
-            match Code::eval(
-                &mut self,
-                instruct.0,
-                instruct.1
-            ) {
-                Ok(value) => value,
+            match ByteCode::eval(self, instruct) {
+                Ok(value) => {},
                 Err(error) => {self.alive = false},
             }
         }
