@@ -43,11 +43,11 @@ impl ThreadIter {
     }
 
     pub fn next(&mut self) -> Self {
-        self.index = self.index + 1;
+        self.goto(self.index + 1);
         self
     }
 
-    fn read(&self) -> Option<Instruction> {
+    fn read(&self) -> Option<(u8, Vec<isize>)> {
         let line = self.bytecode.get(self.index);
         if let Some(_)=line {} else {
             self.active = false;
@@ -55,21 +55,23 @@ impl ThreadIter {
         line
     }
 
-    pub fn eval(&mut self) -> Option<isize> {
-        if let Some(op)=self.read() {
-            match self.execute(op) {
-                Err(error) => {
-                    self.error = Some(error)
-                    self.alive = false
-                },
-                _ => (),
+    pub fn eval(&mut self) -> () {
+        if let Some(instruction)=self.read() {
+            if self.alive {
+                match self.execute(op) {
+                    (false, error) => {
+                        self.error = Some(error);
+                        self.alive = false;
+                    },
+                    _ => (),
+                }
             }
         }
     }
 
     fn execute(
         &mut self,
-        op: Instruction
+        instruction: (u8, Vec<isize>)
     ) -> Result<isize, Error> {
         let (command, args) = op;
         match command {
