@@ -66,8 +66,25 @@ impl ThreadIter {
     ) -> Result<isize, Error> {
         let (command, args) = op;
         match command {
-            0 => Eval::push(self, []),
-            1 => Eval::set(self, []),
+            0 => Stack::push(self, args),
+            1 => Stack::pop(self),
+            2 => Scope::set(self, args),
+            3 => Scope::get(self, args),
+            31 => Math::add(self),
+            32 => Math::sub(self),
+            33 => Math::mul(self),
+            34 => Math::div(self),
+            41 => If::start(self),
+            42 => If::end(self),
+            43 => If::else(self),
+            51 => Loop::start(self),
+            52 => Loop::end(self),
+            53 => Loop::break(self),
+            54 => Loop::continue(self),
+            91 => Fun::declare(self, args),
+            92 => Fun::end(self),
+            93 => Fun::return(self),
+            94 => Fun::call(self, args),
         }
     }
 }
