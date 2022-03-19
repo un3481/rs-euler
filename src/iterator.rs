@@ -9,7 +9,8 @@ struct ThreadIter {
     bytecode: &ByteCode,
     scope: HashMap<&str, isize>,
     stack: Vec<isize>,
-    block: Vec<usize>
+    block: Vec<usize>,
+    error: Option<(usize, &str)>
 }
 
 impl ThreadIter {
@@ -24,7 +25,8 @@ impl ThreadIter {
             bytecode: bytecode,
             scope: HashMap::new(),
             stack: vec![],
-            block: vec![]
+            block: vec![],
+            error: None
         }
     }
 
@@ -47,11 +49,25 @@ impl ThreadIter {
     }
 
     pub fn eval(&mut self) -> Option<isize> {
-        if let Some(instruct)=self.read() {
-            match ByteCode::eval(self, instruct) {
-                Err(_) => {self.alive = false},
+        if let Some(op)=self.read() {
+            match self.execute(op) {
+                Err(error) => {
+                    self.error = Some(error)
+                    self.alive = false
+                },
                 _ => (),
             }
+        }
+    }
+
+    fn execute(
+        &mut self,
+        op: Instruction
+    ) -> Result<isize, Error> {
+        let (command, args) = op;
+        match command {
+            0 => Eval::push(self, []),
+            1 => Eval::set(self, []),
         }
     }
 }
