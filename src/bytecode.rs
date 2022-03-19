@@ -1,3 +1,3 @@
 
-type Instruction = (u8, &[isize]);
-type ByteCode = &[Instruction];
+type Instruction = (u8, Box<[isize]>);
+type ByteCode = Box<[Instruction]>;
