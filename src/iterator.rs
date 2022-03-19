@@ -92,7 +92,7 @@ impl ThreadIter {
             92 => Fun::end(self),
             93 => Fun::return(self),
             94 => Fun::call(self, args),
-            _ => Error::exit(self),
+            _ => Error::exit(self, "invalid instruction"),
         }
     }
 }
