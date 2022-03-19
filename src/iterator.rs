@@ -7,7 +7,7 @@ struct ThreadIter {
     alive: bool,
     index: usize,
     bytecode: &ByteCode,
-    scope: HashMap<&str, isize>,
+    scope: HashMap<usize, isize>,
     stack: Vec<isize>,
     block: Vec<usize>,
     error: Option<(usize, &str)>
