@@ -3,6 +3,13 @@ use crate::bytecode::{
     ByteCode
 };
 
+struct Scope {
+    vars: HashMap<
+, isize>,
+    stack: Vec<isize>,
+    block: Vec<usize>,
+}
+
 struct ThreadIter {
     alive: bool,
     index: usize,
@@ -85,6 +92,7 @@ impl ThreadIter {
             92 => Fun::end(self),
             93 => Fun::return(self),
             94 => Fun::call(self, args),
+            _ => Error::exit(self),
         }
     }
 }
