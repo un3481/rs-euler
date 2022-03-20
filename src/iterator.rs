@@ -10,7 +10,7 @@ struct ThreadScope {
     parent: Option<ParentScope>,
     names: [isize; 256],
     block: [u8; 128],
-    stack: [isize; 16],
+    stack: [isize; 32],
     flags: [u8; 8],
     blen: u8,
     slen: u8
@@ -24,7 +24,7 @@ impl ThreadScope {
             parent: parent,
             names: [0; 256],
             block: [0; 128],
-            stack: [0; 16],
+            stack: [0; 32],
             flags: [0; 8],
             blen: 0,
             slen: 0
