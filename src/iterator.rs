@@ -9,7 +9,6 @@ struct ScopeIter {
     names: [isize; 256],
     stack: [isize; 256],
     blen: u8,
-    nlen: u8,
     slen: u8
 }
 
