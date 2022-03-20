@@ -108,7 +108,7 @@ impl Eval {
             52 => Loop::end(thread),
             53 => Loop::break(thread),
             54 => Loop::continue(thread),
-            91 => Fun::declare(thread, arg),
+            91 => Fun::start(thread, arg),
             92 => Fun::end(thread),
             93 => Fun::return(thread),
             94 => Fun::call(thread, arg),
