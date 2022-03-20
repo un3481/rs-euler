@@ -9,7 +9,7 @@ type ParentScope = Box<(usize, ScopeIter)>;
 struct ScopeIter {
     parent: Option<ParentScope>,
     names: [isize; 256],
-    block: [(u8, usize); 128],
+    block: [u8; 128],
     stack: [isize; 32],
     flags: [u8; 32],
     blen: u8,
