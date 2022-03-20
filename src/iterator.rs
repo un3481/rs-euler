@@ -4,6 +4,15 @@ use crate::bytecode::{
     Instruction
 };
 
+use crate::instructions::{
+    Stack,
+    Scope,
+    Math,
+    If,
+    Loop,
+    Fun
+};
+
 type ParentScope = Box<(usize, ThreadScope)>;
 
 struct ThreadScope {
@@ -28,7 +37,6 @@ struct GreenThread {
 
 impl GreenThread {
 
-    #[inline(always)]
     pub fn new(
         bytecode: &ByteCode,
         index: usize
@@ -80,7 +88,7 @@ impl Eval {
         instruction: Instruction
     ) -> Evaluation {
         let (bytecode, arg) = op;
-        match command {
+        match bytecode {
             0 => Stack::push(thread, arg),
             1 => Stack::pop(thread),
             2 => Scope::set(thread, arg),
@@ -102,5 +110,14 @@ impl Eval {
             94 => Fun::call(thread, arg),
             _ => Eval::exit(thread, "invalid instruction"),
         }
+    }
+
+    #[inline(always)]
+    fn exit(
+        thread: &mut EulerThread,
+        message: &str
+    ) -> Evaluation {
+        thread.active = false;
+        (false, message)
     }
 };
