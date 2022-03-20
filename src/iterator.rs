@@ -5,8 +5,8 @@ use crate::bytecode::{
 };
 
 struct ScopeIter {
-    names: [isize; 1024],
-    block: [(u8, usize); 32],
+    names: [isize; 512],
+    block: [(u8, usize); 128],
     stack: [isize; 32],
     flags: [u8; 32],
     blen: u8,
