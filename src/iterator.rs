@@ -6,10 +6,10 @@ use crate::bytecode::{
 
 struct ScopeIter {
     names: Box<[isize; 1024]>,
+    block: [(u8, usize); 32],
     stack: [isize; 32],
-    block: [u8; 128],
+    blen: u8,
     slen: u8,
-    blen: u8
 }
 
 struct ThreadIter {
