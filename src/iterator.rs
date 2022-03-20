@@ -4,9 +4,10 @@ use crate::bytecode::{
     Instruction
 };
 
-struct Scope {
-    vars: HashMap<
-, isize>,
+type StackIter = (isize, StackIter);
+
+struct ScopeIter {
+    names: HashMap<u8, isize>,
     stack: Vec<isize>,
     block: Vec<usize>,
 }
@@ -15,14 +16,13 @@ struct ThreadIter {
     alive: bool,
     index: usize,
     bytecode: ByteCode,
-    scope: HashMap<usize, isize>,
-    stack: Vec<isize>,
-    block: Vec<usize>,
+    scope: ScopeIter,
     error: Option<(usize, &str)>
 }
 
 impl ThreadIter {
 
+    #[inline(always)]
     pub fn new(
         bytecode: ByteCode,
         index: usize
