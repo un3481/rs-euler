@@ -5,11 +5,11 @@ use crate::bytecode::{
 };
 
 struct ScopeIter {
-    block: [u8; 256],
-    names: [isize; 512],
-    stack: [isize; 256],
-    blen: u8,
-    slen: u8
+    names: Box<[isize; 1024]>,
+    stack: [isize; 32],
+    block: [u8; 128],
+    slen: u8,
+    blen: u8
 }
 
 struct ThreadIter {
