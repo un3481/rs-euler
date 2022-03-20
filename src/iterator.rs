@@ -5,13 +5,14 @@ use crate::bytecode::{
 };
 
 struct ScopeIter {
+    parent: Option<(usize, ScopeIter)>,
     names: [isize; 256],
     block: [(u8, usize); 64],
     stack: [isize; 32],
     flags: [u8; 32],
     blen: u8,
     slen: u8,
-    parent: Option<(usize, ScopeIter)>
+    flen: u8
 }
 
 struct ThreadIter {
