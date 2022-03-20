@@ -1,6 +1,7 @@
 
 use crate::bytecode::{
-    ByteCode
+    ByteCode,
+    Instruction
 };
 
 struct Scope {
@@ -13,7 +14,7 @@ struct Scope {
 struct ThreadIter {
     alive: bool,
     index: usize,
-    bytecode: &ByteCode,
+    bytecode: ByteCode,
     scope: HashMap<usize, isize>,
     stack: Vec<isize>,
     block: Vec<usize>,
@@ -23,7 +24,7 @@ struct ThreadIter {
 impl ThreadIter {
 
     pub fn new(
-        bytecode: &ByteCode,
+        bytecode: ByteCode,
         index: usize
     ) -> Self {
         ThreadIter {
