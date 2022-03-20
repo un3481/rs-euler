@@ -4,15 +4,6 @@ use crate::bytecode::{
     Instruction
 };
 
-use crate::instructions::{
-    Stack,
-    Scope,
-    Math,
-    If,
-    Loop,
-    Fun
-};
-
 type ParentScope = Box<(usize, ThreadScope)>;
 
 struct ThreadScope {
@@ -23,6 +14,22 @@ struct ThreadScope {
     flags: [u8; 8],
     blen: u8,
     slen: u8
+};
+
+impl ThreadScope {
+    pub fn new(
+        parent: Option<ParentScope>
+    ) -> Self {
+        ThreadScope {
+            parent: parent,
+            names: [0; 256],
+            block: [0; 128],
+            stack: [0; 16],
+            flags: [0; 8],
+            blen: 0,
+            slen: 0
+        }
+    }
 };
 
 type ThreadError = (usize, &str);
@@ -36,7 +43,6 @@ struct GreenThread {
 };
 
 impl GreenThread {
-
     pub fn new(
         bytecode: &ByteCode,
         index: usize
@@ -69,24 +75,22 @@ impl GreenThread {
     }
 
     #[inline(always)]
-    pub fn eval(&mut self) -> Evaluation {
+    pub fn eval(&mut self) -> Self {
         if !self.alive {return};
         if let Some(instr)=self.read() {
-            Eval::instruction(self, instr)
-        }
+            Eval::instruction(self, instr);
+        };
+        self
     }
 };
 
-type Evaluation = (bool, Option<String>);
-
 struct Eval {};
 impl Eval {
-
     #[inline(always)]
     fn instruction(
         thread: &mut EulerThread,
         instruction: Instruction
-    ) -> Evaluation {
+    ) -> isize {
         let (bytecode, arg) = instruction;
         match bytecode {
             0 => Stack::push(thread, arg),
@@ -116,8 +120,62 @@ impl Eval {
     fn exit(
         thread: &mut EulerThread,
         message: &str
-    ) -> Evaluation {
+    ) -> isize {
         thread.active = false;
-        (false, message)
+        thread.error = (thread.index, message);
+        1
+    }
+};
+
+struct Stack {}
+impl Stack {
+    #[inline(always)]
+    fn push(
+        thread: &mut EulerThread,
+        arg: isize
+    ) -> isize {
+        thread.scope.slen = (
+            thread.scope.slen + 1
+        );
+        thread.scope.stack[
+            thread.scope.slen
+        ] = arg;
+        arg
+    }
+
+    #[inline(always)]
+    fn pop(
+        thread: &mut EulerThread
+    ) -> isize {
+        thread.scope.slen = (
+            thread.scope.slen - 1
+        );
+        thread.scope.stack[
+            thread.scope.slen + 1
+        ]
+    }
+};
+
+struct Scope {}
+impl Scope {
+    #[inline(always)]
+    fn set(
+        thread: &mut EulerThread,
+        arg: isize
+    ) -> isize {
+        thread.scope.names[arg as u8] = (
+            Stack.pop(thread)
+        );
+        arg
+    }
+
+    #[inline(always)]
+    fn get(
+        thread: &mut EulerThread,
+        arg: isize
+    ) -> isize {
+        Stack.push(thread,
+            thread.scope.names[arg as u8]
+        )
     }
 };
