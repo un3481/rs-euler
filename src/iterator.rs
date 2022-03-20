@@ -10,8 +10,8 @@ struct ScopeIter {
     parent: Option<ParentScope>,
     names: [isize; 256],
     block: [u8; 128],
-    stack: [isize; 32],
-    flags: [u8; 32],
+    stack: [isize; 16],
+    flags: [u8; 8],
     blen: u8,
     slen: u8,
     flen: u8
