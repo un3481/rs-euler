@@ -4,12 +4,13 @@ use crate::bytecode::{
     Instruction
 };
 
-type StackIter = (isize, StackIter);
-
 struct ScopeIter {
-    names: HashMap<u8, isize>,
-    stack: Vec<isize>,
-    block: Vec<usize>,
+    block: [u8; 256],
+    names: [isize; 1024],
+    stack: [isize; 256],
+    blen: u8,
+    nlen: u8,
+    slen: u8
 }
 
 struct ThreadIter {
