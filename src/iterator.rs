@@ -20,7 +20,7 @@ struct ScopeIter {
 struct ThreadIter {
     alive: bool,
     index: usize,
-    bytecode: ByteCode,
+    bytecode: &ByteCode,
     scope: ScopeIter,
     error: Option<(usize, &str)>
 }
@@ -29,7 +29,7 @@ impl ThreadIter {
 
     #[inline(always)]
     pub fn new(
-        bytecode: ByteCode,
+        bytecode: &ByteCode,
         index: usize
     ) -> Self {
         ThreadIter {
