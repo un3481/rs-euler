@@ -87,7 +87,7 @@ impl Eval {
         thread: &mut EulerThread,
         instruction: Instruction
     ) -> Evaluation {
-        let (bytecode, arg) = op;
+        let (bytecode, arg) = instruction;
         match bytecode {
             0 => Stack::push(thread, arg),
             1 => Stack::pop(thread),
