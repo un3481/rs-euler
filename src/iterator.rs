@@ -11,6 +11,7 @@ struct ScopeIter {
     flags: [u8; 32],
     blen: u8,
     slen: u8,
+    parent: Option<(usize, ScopeIter)>
 }
 
 struct ThreadIter {
