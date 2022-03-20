@@ -8,6 +8,7 @@ struct ScopeIter {
     names: Box<[isize; 1024]>,
     block: [(u8, usize); 32],
     stack: [isize; 32],
+    flags: [u8; 32],
     blen: u8,
     slen: u8,
 }
