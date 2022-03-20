@@ -37,16 +37,19 @@ impl ThreadIter {
         }
     }
 
+    #[inline(always)]
     pub fn goto(&mut self, index: usize) -> Self {
         self.index = index;
         self
     }
 
+    #[inline(always)] 
     pub fn next(&mut self) -> Self {
         self.goto(self.index + 1);
         self
     }
 
+    #[inline(always)]
     fn read(&self) -> Option<(u8, Vec<isize>)> {
         let line = self.bytecode.get(self.index);
         if let Some(_)=line {} else {
@@ -55,6 +58,7 @@ impl ThreadIter {
         line
     }
 
+    #[inline(always)]
     pub fn eval(&mut self) -> () {
         if let Some(instruction)=self.read() {
             if self.alive {
@@ -69,9 +73,10 @@ impl ThreadIter {
         }
     }
 
+    #[inline(always)]
     fn execute(
         &mut self,
-        instruction: (u8, Vec<isize>)
+        instruction: (u8, isize)
     ) -> Result<isize, Error> {
         let (command, args) = op;
         match command {
