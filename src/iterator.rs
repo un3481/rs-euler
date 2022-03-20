@@ -13,8 +13,7 @@ struct ScopeIter {
     stack: [isize; 16],
     flags: [u8; 8],
     blen: u8,
-    slen: u8,
-    flen: u8
+    slen: u8
 }
 
 struct ThreadIter {
