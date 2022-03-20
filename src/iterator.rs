@@ -4,8 +4,10 @@ use crate::bytecode::{
     Instruction
 };
 
+type ParentIter = Box<(usize, ScopeIter)>;
+
 struct ScopeIter {
-    parent: Option<(usize, ScopeIter)>,
+    parent: Option<ParentIter>,
     names: [isize; 256],
     block: [(u8, usize); 64],
     stack: [isize; 32],
