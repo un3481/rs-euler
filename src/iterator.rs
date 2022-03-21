@@ -76,7 +76,7 @@ impl GreenThread {
 
     #[inline(always)]
     pub fn eval(&mut self) -> Self {
-        if !self.alive {return};
+        if !self.alive {return self};
         if let Some(instr)=self.read() {
             Eval::instruction(self, instr);
         };
@@ -112,16 +112,24 @@ impl Eval {
             92 => Fun::end(thread),
             93 => Fun::return(thread),
             94 => Fun::call(thread, arg),
-            _ => Eval::exit(thread, "invalid instruction"),
+            _ => Eval::error(thread, "invalid instruction"),
         }
+    }
+ 
+    #[inline(always)]
+    fn exit(
+        thread: &mut EulerThread
+    ) -> isize {
+        thread.active = false;
+        0
     }
 
     #[inline(always)]
-    fn exit(
+    fn error(
         thread: &mut EulerThread,
         message: &str
     ) -> isize {
-        thread.active = false;
+        Eval::exit(thread);
         thread.error = (thread.index, message);
         1
     }
