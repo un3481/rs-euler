@@ -51,7 +51,7 @@ impl GreenThread {
             alive: true,
             index: index,
             bytecode: bytecode,
-            scope: ThreadScope::new(),
+            scope: ThreadScope::new(None),
             error: None
         }
     }
