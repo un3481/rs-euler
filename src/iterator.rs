@@ -9,8 +9,8 @@ type ParentScope = Box<(usize, ThreadScope)>;
 struct ThreadScope {
     parent: Option<ParentScope>,
     names: Box<[isize; 256]>,
-    block: [u8; 128],
-    stack: [isize; 32],
+    block: [u8; 64],
+    stack: [isize; 16],
     flags: [u8; 8],
     blen: u8,
     slen: u8
@@ -23,8 +23,8 @@ impl ThreadScope {
         ThreadScope {
             parent: parent,
             names: box [0; 256],
-            block: [0; 128],
-            stack: [0; 32],
+            block: [0; 64],
+            stack: [0; 16],
             flags: [0; 8],
             blen: 0,
             slen: 0
