@@ -14,8 +14,6 @@ struct ThreadScope {
     pub parent: Option<ParentScope>,
     pub names: [isize; 256],
     pub stack: [isize; 8],
-    pub flags: [u8; 4],
-    pub b: u8,
     pub s: u8
 }
 
@@ -29,20 +27,18 @@ impl ThreadScope {
             parent: parent,
             names: [0; 256],
             stack: [0; 8],
-            flags: [0; 4],
-            b: 0,
             s: 0
         }
     }
 }
 
-type ThreadError<'a> = (u8, &'a str);
+type ThreadError = (u8, String);
 
 //##########################################################################################################################
 
 pub struct EulerThread<'a> {
     pub bytecode: &'a ByteCode,
-    pub error: Option<ThreadError<'a>>,
+    pub error: Option<ThreadError>,
     alive: bool,
     index: usize,
     scope: ThreadScope
@@ -109,7 +105,7 @@ impl<'a> EulerThread<'a> {
     }
 
     #[inline]
-    pub fn raise(&mut self, message: &'a str) -> isize {
+    pub fn raise(&mut self, message: String) -> isize {
         self.exit();
         self.error = Some((self.index as u8, message));
         0
@@ -167,7 +163,7 @@ impl Eval {
             19 => Error::raise(thread),
              _ => Error::inop(thread),
         }
-    } 
+    }
 }
 
 //##########################################################################################################################
@@ -178,15 +174,16 @@ impl Error {
 
     #[inline]
     pub fn raise(thread: &mut EulerThread) -> isize {
-        // let str_ptr = Stack::pop(thread);
-        // let message = EulerString::get(str_ptr); // get string from pointer in stack top
-        // thread.raise(&message); // raise error with custom message string
+        let str_ptr = Stack::pop(thread);
+        let message = EulerString::get(str_ptr); // get string from pointer in stack top
+        thread.raise(message); // raise error with custom message string
         1
     }
 
     #[inline]
     pub fn inop(thread: &mut EulerThread) -> isize {
-        thread.raise("invalid operation"); // raise error for invalid operations
+        let message = String::from("invalid operation");
+        thread.raise(message); // raise error for invalid operations
         1
     }
 }
@@ -231,16 +228,6 @@ impl Stack {
     pub fn clear(thread: &mut EulerThread) -> isize {
         thread.scope.s = 0; // clear all stack positions
         0
-    }
-
-    #[inline]
-    pub fn reset(thread: &mut EulerThread) -> isize {
-        if thread.scope.s == 0 {0}
-        else {
-            thread.scope.stack[0] = thread.scope.stack[thread.scope.s as usize - 1]; // move top of stack to bottom
-            thread.scope.s = 1; // clear trailing positions from stack
-            thread.scope.stack[0] // return top of stack
-        }
     }
 }
 
@@ -382,7 +369,8 @@ impl Fun {
     pub fn end(thread: &mut EulerThread) -> isize {
         let val = Stack::pop(thread); // get top of stack
         if thread.unfold() != 0 {
-            thread.raise("return called with no parent scope");
+            let message = String::from("return called with no parent scope");
+            thread.raise(message);
             1
         } else {
             Stack::push(thread, val); // push function return to top of stack
