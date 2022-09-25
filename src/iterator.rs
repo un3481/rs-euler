@@ -183,7 +183,7 @@ impl Scope {
         arg: isize
     ) -> isize {
         thread.scope.names[arg as u8] = Stack::pop(thread);
-        arg
+        thread.scope.names[arg as u8]
     }
 
     #[inline(always)]
@@ -191,8 +191,7 @@ impl Scope {
         thread: &mut EulerThread,
         arg: isize
     ) -> isize {
-        let val = thread.scope.names[arg as u8];
-        Stack::push(thread, val)
+        Stack::push(thread, thread.scope.names[arg as u8])
     }
 };
 
