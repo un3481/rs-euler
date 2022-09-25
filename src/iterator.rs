@@ -43,7 +43,7 @@ type ThreadError = (u8, &str);
 
 pub struct EulerThread {
     pub bytecode: &ByteCode,
-    pub error: Option<ThreadError>
+    pub error: Option<ThreadError>,
     alive: bool,
     index: usize,
     scope: Scope
@@ -57,11 +57,11 @@ impl EulerThread {
         index: usize
     ) -> Self {
         EulerThread {
+            bytecode: bytecode,
+            error: None,
             alive: true,
             index: index,
-            bytecode: bytecode,
-            scope: Scope::new(None),
-            error: None
+            scope: Scope::new(None)
         }
     }
 
