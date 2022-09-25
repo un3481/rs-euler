@@ -11,13 +11,12 @@ use crate::bytecode::{
 type ParentScope = Box<(usize, Scope)>;
 
 struct Scope {
-    parent: Option<ParentScope>,
-    names: [isize; 256],
-    block: [u8; 32],
-    stack: [isize; 8],
-    flags: [u8; 4],
-    b: u8,
-    s: u8
+    pub parent: Option<ParentScope>,
+    pub names: [isize; 256],
+    pub stack: [isize; 8],
+    pub flags: [u8; 4],
+    pub b: u8,
+    pub s: u8
 };
 
 impl Scope {
@@ -43,11 +42,11 @@ type ThreadError = (u8, &str);
 //##########################################################################################################################
 
 pub struct EulerThread {
+    pub bytecode: &ByteCode,
+    pub error: Option<ThreadError>
     alive: bool,
     index: usize,
-    bytecode: &ByteCode,
-    scope: Scope,
-    error: Option<ThreadError>
+    scope: Scope
 };
 
 impl EulerThread {
@@ -67,13 +66,35 @@ impl EulerThread {
     }
 
     #[inline]
-    pub fn goto(&mut self, index: usize) -> Self {
+    pub fn fold(&mut self) -> isize {
+        self.scope = Scope::new((self.index, self.scope));
+        self.index = 0;
+        0
+    }
+
+    #[inline]
+    pub fn unfold(&mut self) -> isize {
+        if let Some(parent) = self.scope.parent {
+            let (index, scope) = parent;
+            self.index = index;
+            self.scope = scope;
+            0
+        } else {1}
+    }
+};
+
+//##########################################################################################################################
+
+impl EulerThread {
+
+    #[inline]
+    pub fn goto(&mut self, index: usize) -> isize {
         self.index = index;
-        self
+        0
     }
 
     #[inline] 
-    pub fn next(&mut self) -> Self {
+    pub fn next(&mut self) -> isize {
         self.goto(self.index + 1)
     }
 
@@ -83,24 +104,31 @@ impl EulerThread {
     }
 
     #[inline]
-    pub fn exit(&mut self) -> Self {
+    pub fn exit(&mut self) -> isize {
         self.active = false;
-        self
+        0
     }
 
     #[inline]
     pub fn raise(&mut self, message: &str) -> isize {
         self.exit();
-        self.error = (self.index, message)
+        self.error = (self.index, message);
+        0
     }
 
     #[inline]
-    pub fn eval(&mut self) -> Self {
-        if self.alive {
-            if let Some(op)=self.read() { Eval::operation(self, op) }
-            else { self.exit() }
-        };
-        self
+    pub fn eval(&mut self) -> isize {
+        if !self.alive {1}
+        else {
+            if let Some(op)=self.read() {
+                Eval::operation(self, op);
+                0
+            }
+            else {
+                self.exit();
+                1
+            }
+        }
     }
 };
 
@@ -117,10 +145,10 @@ impl Eval {
     ) -> isize {
         let (bytecode, arg) = operation;
         match bytecode {
-             0 => Stack::push(thread, arg),
-             1 => Stack::pop(thread),
-             2 => Scope::set(thread, arg),
-             3 => Scope::get(thread, arg),
+             0 => Stack::push(thread, arg) * thread.next(),
+             1 => Stack::pop(thread)       * thread.next(),
+             2 => Scope::set(thread, arg)  * thread.next(),
+             3 => Scope::get(thread, arg)  * thread.next(),
              4 => Line::break(thread),
              5 => Bool::and(thread),
              6 => Bool::or(thread),
@@ -170,7 +198,8 @@ impl Line {
 
     #[inline]
     pub fn break(thread: &mut EulerThread) -> isize {
-        Stack::clear(thread)
+        Stack::clear(thread);
+        thread.next()
     }
 };
 
@@ -182,7 +211,7 @@ impl Stack {
 
     #[inline]
     pub fn push(thread: &mut EulerThread, arg: isize) -> isize {
-        thread.scope.stack[thread.scope.s] = arg; // push value to stack top
+        thread.scope.stack[thread.scope.s] = arg; // push value to top of stack
         thread.scope.s = thread.scope.s + 1; // add one position to stack
         thread.scope.s as isize // return stack length
     }
@@ -191,9 +220,9 @@ impl Stack {
     pub fn pop(thread: &mut EulerThread) -> isize {
         if thread.scope.s == 0 {0}
         else {
-            let val = thread.scope.stack[thread.scope.s]; // get stack top
+            let val = thread.scope.stack[thread.scope.s]; // get top of stack
             thread.scope.s = thread.scope.s - 1; // clear one position from stack
-            val // return old stack top
+            val // return top of stack
         }
     }
 
@@ -207,9 +236,9 @@ impl Stack {
     pub fn reset(thread: &mut EulerThread) -> isize {
         if thread.scope.s == 0 {0}
         else {
-            thread.scope.stack[0] = thread.scope.stack[thread.scope.s - 1]; // move stack top to bottom
+            thread.scope.stack[0] = thread.scope.stack[thread.scope.s - 1]; // move top of stack to bottom
             thread.scope.s = 1; // clear trailing positions from stack
-            thread.scope.stack[0] // return stack top
+            thread.scope.stack[0] // return top of stack
         }
     }
 };
@@ -222,13 +251,13 @@ impl Scope {
 
     #[inline]
     pub fn set(thread: &mut EulerThread, arg: isize) -> isize {
-        thread.scope.names[arg as u8] = Stack::pop(thread); // assign stack top to variable
+        thread.scope.names[arg as u8] = Stack::pop(thread); // assign top of stack to variable
         thread.scope.names[arg as u8] // return variable value
     }
 
     #[inline]
     pub fn get(thread: &mut EulerThread, arg: isize) -> isize {
-        Stack::push(thread, thread.scope.names[arg as u8]) // push variable to stack top
+        Stack::push(thread, thread.scope.names[arg as u8]) // push variable to top of stack
     }
 };
 
@@ -247,14 +276,16 @@ impl Bool {
     pub fn and(thread: &mut EulerThread) -> isize {
         let t1 = Stack::pop(thread);
         let t2 = Stack::pop(thread);
-        Stack::push(thread, to_int((t2 != 0) && (t1 != 0)))
+        Stack::push(thread, to_int((t2 != 0) && (t1 != 0)));
+        thread.next()
     }
 
     #[inline]
     pub fn or(thread: &mut EulerThread) -> isize {
         let t1 = Stack::pop(thread);
         let t2 = Stack::pop(thread);
-        Stack::push(thread, to_int((t2 != 0) || (t1 != 0)))
+        Stack::push(thread, to_int((t2 != 0) || (t1 != 0)));
+        thread.next()
     }
 };
 
@@ -268,28 +299,32 @@ impl Math {
     pub fn sum(thread: &mut EulerThread) -> isize {
         let t1 = Stack::pop(thread);
         let t2 = Stack::pop(thread);
-        Stack::push(thread, t2 + t1)
+        Stack::push(thread, t2 + t1);
+        thread.next()
     }
 
     #[inline]
     pub fn sub(thread: &mut EulerThread) -> isize {
         let t1 = Stack::pop(thread);
         let t2 = Stack::pop(thread);
-        Stack::push(thread, t2 - t1)
+        Stack::push(thread, t2 - t1);
+        thread.next()
     }
 
     #[inline]
     pub fn mul(thread: &mut EulerThread) -> isize {
         let t1 = Stack::pop(thread);
         let t2 = Stack::pop(thread);
-        Stack::push(thread, t2 * t1)
+        Stack::push(thread, t2 * t1);
+        thread.next()
     }
 
     #[inline]
     pub fn div(thread: &mut EulerThread) -> isize {
         let t1 = Stack::pop(thread);
         let t2 = Stack::pop(thread);
-        Stack::push(thread, t2 / t1)
+        Stack::push(thread, t2 / t1);
+        thread.next()
     }
 };
 
@@ -301,13 +336,14 @@ impl If {
 
     #[inline]
     pub fn start(thread: &mut EulerThread, arg: isize) -> isize {
-        if Stack::pop(thread) == 0 { thread.goto(arg as usize) }; // if stack top is 0 go to [if_else + 1]
+        if Stack::pop(thread) != 0 { thread.next() } // if top of stack is not 0 go to [next]
+        else { thread.goto(arg as usize) }; // if top of stack is 0 go to [else + 1]
         Stack::clear(thread)
     }
 
     #[inline]
     pub fn else(thread: &mut EulerThread, arg: isize) -> isize {
-        thread.goto(arg as usize); // go to [if_end]
+        thread.goto(arg as usize); // go to [end + 1]
         Stack::clear(thread)
     }
 };
@@ -320,18 +356,49 @@ impl Loop {
 
     #[inline]
     pub fn start(thread: &mut EulerThread) -> isize {
-        Stack::clear(thread)
+        Stack::clear(thread);
+        thread.next()
     }
 
     #[inline]
     pub fn end(thread: &mut EulerThread, arg: isize) -> isize {
-        thread.goto(arg as usize); // go to [loop_start]
-        0
+        thread.goto(arg as usize); // go to [start]
     }
 
     #[inline]
     pub fn break(thread: &mut EulerThread, arg: isize) -> isize {
-        thread.goto(arg as usize); // go to [loop_end + 1]
+        thread.goto(arg as usize); // go to [end + 1]
+    }
+};
+
+//##########################################################################################################################
+
+struct Fun {}
+
+impl Fun {
+
+    #[inline]
+    pub fn start(thread: &mut EulerThread, arg: isize) -> isize {
+        thread.goto(arg as usize); // go to [end + 1]
+    }
+
+    #[inline]
+    pub fn end(thread: &mut EulerThread) -> isize {
+        let val = Stack::pop(thread); // get top of stack
+        if thread.unfold() != 0 {
+            thread.raise("return called with no parent scope");
+            1
+        } else {
+            Stack::push(thread, val) // push function return to top of stack
+            thread.next() // go to [next]
+            0
+        }
+    }
+
+    #[inline]
+    pub fn call(thread: &mut EulerThread, arg: isize) -> isize {
+        thread.fold(); // crate new scope
+        thread.goto(arg as usize); // go to [start + 1]
         0
     }
 };
