@@ -1,73 +1,70 @@
 
 // Modules
-use crate::bytecode::{
-    Code,
-    ByteCode,
-    Operation
-};
+use crate::bytecode::{ ByteCode, Operation };
+use crate::types::{ EulerString };
 
 //##########################################################################################################################
 
-type ParentScope = Box<(usize, Scope)>;
+type ParentScope = Box<(usize, ThreadScope)>;
 
-struct Scope {
+struct ThreadScope {
     pub parent: Option<ParentScope>,
     pub names: [isize; 256],
     pub stack: [isize; 8],
     pub flags: [u8; 4],
     pub b: u8,
     pub s: u8
-};
+}
 
-impl Scope {
+impl ThreadScope {
 
     #[inline]
     pub fn new(
         parent: Option<ParentScope>
     ) -> Self {
-        Scope {
+        ThreadScope {
             parent: parent,
             names: [0; 256],
-            block: [0; 32],
             stack: [0; 8],
             flags: [0; 4],
             b: 0,
             s: 0
         }
     }
-};
+}
 
-type ThreadError = (u8, &str);
+type ThreadError<'a> = (u8, &'a str);
 
 //##########################################################################################################################
 
-pub struct EulerThread {
-    pub bytecode: &ByteCode,
-    pub error: Option<ThreadError>,
+pub struct EulerThread<'a> {
+    pub bytecode: &'a ByteCode,
+    pub error: Option<ThreadError<'a>>,
     alive: bool,
     index: usize,
-    scope: Scope
-};
+    scope: ThreadScope
+}
 
-impl EulerThread {
+impl<'a> EulerThread<'a> {
 
     #[inline]
     pub fn new(
-        bytecode: &ByteCode,
+        bytecode: &'a ByteCode,
         index: usize
     ) -> Self {
-        EulerThread {
+        EulerThread::<'a> {
             bytecode: bytecode,
             error: None,
             alive: true,
             index: index,
-            scope: Scope::new(None)
+            scope: ThreadScope::new(None)
         }
     }
 
     #[inline]
     pub fn fold(&mut self) -> isize {
-        self.scope = Scope::new((self.index, self.scope));
+        let parent = Box::new((self.index, self.scope));
+        self.scope = ThreadScope::new(Some(parent));
         self.index = 0;
         0
     }
@@ -75,17 +72,17 @@ impl EulerThread {
     #[inline]
     pub fn unfold(&mut self) -> isize {
         if let Some(parent) = self.scope.parent {
-            let (index, scope) = parent;
+            let (index, scope) = *parent;
             self.index = index;
             self.scope = scope;
             0
         } else {1}
     }
-};
+}
 
 //##########################################################################################################################
 
-impl EulerThread {
+impl<'a> EulerThread<'a> {
 
     #[inline]
     pub fn goto(&mut self, index: usize) -> isize {
@@ -99,20 +96,15 @@ impl EulerThread {
     }
 
     #[inline]
-    fn read(&self) -> Option<Instruction> {
-        self.bytecode.get(self.index)
-    }
-
-    #[inline]
     pub fn exit(&mut self) -> isize {
-        self.active = false;
+        self.alive = false;
         0
     }
 
     #[inline]
-    pub fn raise(&mut self, message: &str) -> isize {
+    pub fn raise(&mut self, message: &'a str) -> isize {
         self.exit();
-        self.error = (self.index, message);
+        self.error = Some((self.index as u8, message));
         0
     }
 
@@ -120,7 +112,8 @@ impl EulerThread {
     pub fn eval(&mut self) -> isize {
         if !self.alive {1}
         else {
-            if let Some(op)=self.read() {
+            let read = self.bytecode.get(self.index);
+            if let Some(op)=read {
                 Eval::operation(self, op);
                 0
             }
@@ -130,45 +123,45 @@ impl EulerThread {
             }
         }
     }
-};
+}
 
 //##########################################################################################################################
 
-struct Eval {};
+struct Eval {}
 
 impl Eval {
 
     #[inline]
     fn operation(
         thread: &mut EulerThread,
-        operation: Operation
+        operation: &Operation
     ) -> isize {
         let (bytecode, arg) = operation;
         match bytecode {
-             0 => Stack::push(thread, arg) * thread.next(),
-             1 => Stack::pop(thread)       * thread.next(),
-             2 => Scope::set(thread, arg)  * thread.next(),
-             3 => Scope::get(thread, arg)  * thread.next(),
-             4 => Line::break(thread),
+             0 => Stack::push(thread, *arg) * thread.next(),
+             1 => Stack::pop(thread)        * thread.next(),
+             2 => Scope::set(thread, *arg)  * thread.next(),
+             3 => Scope::get(thread, *arg)  * thread.next(),
+             4 => Line::r#break(thread),
              5 => Bool::and(thread),
              6 => Bool::or(thread),
              7 => Math::add(thread),
              8 => Math::sub(thread),
              9 => Math::mul(thread),
             10 => Math::div(thread),
-            11 => If::start(thread, arg),
-            12 => If::else(thread, arg),
+            11 => If::start(thread, *arg),
+            12 => If::r#else(thread, *arg),
             13 => Loop::start(thread),
-            14 => Loop::continue(thread, arg),
-            15 => Loop::break(thread, arg),
-            16 => Fun::start(thread, arg),
+            14 => Loop::end(thread, *arg),
+            15 => Loop::r#break(thread, *arg),
+            16 => Fun::start(thread, *arg),
             17 => Fun::end(thread),
-            18 => Fun::call(thread, arg),
+            18 => Fun::call(thread, *arg),
             19 => Error::raise(thread),
              _ => Error::inop(thread),
         }
     } 
-};
+}
 
 //##########################################################################################################################
 
@@ -178,8 +171,9 @@ impl Error {
 
     #[inline]
     pub fn raise(thread: &mut EulerThread) -> isize {
-        let message = String::get(thread); // get string from pointer in stack top
-        thread.raise(message); // raise error with custom message string
+        // let str_ptr = Stack::pop(thread);
+        // let message = EulerString::get(str_ptr); // get string from pointer in stack top
+        // thread.raise(&message); // raise error with custom message string
         1
     }
 
@@ -188,7 +182,7 @@ impl Error {
         thread.raise("invalid operation"); // raise error for invalid operations
         1
     }
-};
+}
 
 //##########################################################################################################################
 
@@ -197,11 +191,11 @@ struct Line {}
 impl Line {
 
     #[inline]
-    pub fn break(thread: &mut EulerThread) -> isize {
+    pub fn r#break(thread: &mut EulerThread) -> isize {
         Stack::clear(thread);
         thread.next()
     }
-};
+}
 
 //##########################################################################################################################
 
@@ -211,7 +205,7 @@ impl Stack {
 
     #[inline]
     pub fn push(thread: &mut EulerThread, arg: isize) -> isize {
-        thread.scope.stack[thread.scope.s] = arg; // push value to top of stack
+        thread.scope.stack[thread.scope.s as usize] = arg; // push value to top of stack
         thread.scope.s = thread.scope.s + 1; // add one position to stack
         thread.scope.s as isize // return stack length
     }
@@ -220,7 +214,7 @@ impl Stack {
     pub fn pop(thread: &mut EulerThread) -> isize {
         if thread.scope.s == 0 {0}
         else {
-            let val = thread.scope.stack[thread.scope.s]; // get top of stack
+            let val = thread.scope.stack[thread.scope.s as usize]; // get top of stack
             thread.scope.s = thread.scope.s - 1; // clear one position from stack
             val // return top of stack
         }
@@ -236,12 +230,12 @@ impl Stack {
     pub fn reset(thread: &mut EulerThread) -> isize {
         if thread.scope.s == 0 {0}
         else {
-            thread.scope.stack[0] = thread.scope.stack[thread.scope.s - 1]; // move top of stack to bottom
+            thread.scope.stack[0] = thread.scope.stack[thread.scope.s as usize - 1]; // move top of stack to bottom
             thread.scope.s = 1; // clear trailing positions from stack
             thread.scope.stack[0] // return top of stack
         }
     }
-};
+}
 
 //##########################################################################################################################
 
@@ -251,15 +245,15 @@ impl Scope {
 
     #[inline]
     pub fn set(thread: &mut EulerThread, arg: isize) -> isize {
-        thread.scope.names[arg as u8] = Stack::pop(thread); // assign top of stack to variable
-        thread.scope.names[arg as u8] // return variable value
+        thread.scope.names[arg as usize] = Stack::pop(thread); // assign top of stack to variable
+        thread.scope.names[arg as usize] // return variable value
     }
 
     #[inline]
     pub fn get(thread: &mut EulerThread, arg: isize) -> isize {
-        Stack::push(thread, thread.scope.names[arg as u8]) // push variable to top of stack
+        Stack::push(thread, thread.scope.names[arg as usize]) // push variable to top of stack
     }
-};
+}
 
 //##########################################################################################################################
 
@@ -268,15 +262,10 @@ struct Bool {}
 impl Bool {
 
     #[inline]
-    fn to_int(value: bool) -> isize {
-        if (value) {1} else {0}
-    }
-
-    #[inline]
     pub fn and(thread: &mut EulerThread) -> isize {
         let t1 = Stack::pop(thread);
         let t2 = Stack::pop(thread);
-        Stack::push(thread, to_int((t2 != 0) && (t1 != 0)));
+        Stack::push(thread, if (t2 != 0) && (t1 != 0) {1} else {0});
         thread.next()
     }
 
@@ -284,10 +273,10 @@ impl Bool {
     pub fn or(thread: &mut EulerThread) -> isize {
         let t1 = Stack::pop(thread);
         let t2 = Stack::pop(thread);
-        Stack::push(thread, to_int((t2 != 0) || (t1 != 0)));
+        Stack::push(thread, if (t2 != 0) || (t1 != 0) {1} else {0});
         thread.next()
     }
-};
+}
 
 //##########################################################################################################################
 
@@ -296,7 +285,7 @@ struct Math {}
 impl Math {
 
     #[inline]
-    pub fn sum(thread: &mut EulerThread) -> isize {
+    pub fn add(thread: &mut EulerThread) -> isize {
         let t1 = Stack::pop(thread);
         let t2 = Stack::pop(thread);
         Stack::push(thread, t2 + t1);
@@ -326,7 +315,7 @@ impl Math {
         Stack::push(thread, t2 / t1);
         thread.next()
     }
-};
+}
 
 //##########################################################################################################################
 
@@ -342,11 +331,11 @@ impl If {
     }
 
     #[inline]
-    pub fn else(thread: &mut EulerThread, arg: isize) -> isize {
+    pub fn r#else(thread: &mut EulerThread, arg: isize) -> isize {
         thread.goto(arg as usize); // go to [end + 1]
         Stack::clear(thread)
     }
-};
+}
 
 //##########################################################################################################################
 
@@ -362,14 +351,14 @@ impl Loop {
 
     #[inline]
     pub fn end(thread: &mut EulerThread, arg: isize) -> isize {
-        thread.goto(arg as usize); // go to [start]
+        thread.goto(arg as usize) // go to [start]
     }
 
     #[inline]
-    pub fn break(thread: &mut EulerThread, arg: isize) -> isize {
-        thread.goto(arg as usize); // go to [end + 1]
+    pub fn r#break(thread: &mut EulerThread, arg: isize) -> isize {
+        thread.goto(arg as usize) // go to [end + 1]
     }
-};
+}
 
 //##########################################################################################################################
 
@@ -379,7 +368,7 @@ impl Fun {
 
     #[inline]
     pub fn start(thread: &mut EulerThread, arg: isize) -> isize {
-        thread.goto(arg as usize); // go to [end + 1]
+        thread.goto(arg as usize) // go to [end + 1]
     }
 
     #[inline]
@@ -389,9 +378,8 @@ impl Fun {
             thread.raise("return called with no parent scope");
             1
         } else {
-            Stack::push(thread, val) // push function return to top of stack
+            Stack::push(thread, val); // push function return to top of stack
             thread.next() // go to [next]
-            0
         }
     }
 
@@ -401,6 +389,6 @@ impl Fun {
         thread.goto(arg as usize); // go to [start + 1]
         0
     }
-};
+}
 
 //##########################################################################################################################

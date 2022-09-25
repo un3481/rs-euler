@@ -1,0 +1,10 @@
+[package]
+name = "euler"
+version = "0.1.0"
+authors = ["anthony"]
+edition = "2018"
+
+[lib]
+name = "euler_tools"
+path = "src/lib.rs"
+crate-type = ["dylib"]
