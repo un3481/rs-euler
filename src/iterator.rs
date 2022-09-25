@@ -115,12 +115,10 @@ impl<'a> EulerThread<'a> {
     pub fn eval(&mut self) -> isize {
         if !self.alive {1}
         else {
-            let read = self.bytecode.get(self.index);
-            if let Some(op)=read {
+            if let Some(op)=self.bytecode.get(self.index) {
                 Eval::operation(self, op);
                 0
-            }
-            else {
+            } else {
                 self.exit();
                 1
             }
