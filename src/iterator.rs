@@ -20,6 +20,8 @@ struct Scope {
 };
 
 impl Scope {
+
+    #[inline(always)]
     pub fn new(
         parent: Option<ParentScope>
     ) -> Self {
@@ -48,6 +50,8 @@ struct EulerThread {
 };
 
 impl EulerThread {
+
+    #[inline(always)]
     pub fn new(
         bytecode: &ByteCode,
         index: usize
@@ -92,6 +96,7 @@ impl EulerThread {
 struct Eval {};
 
 impl Eval {
+
     #[inline(always)]
     fn operation(
         thread: &mut EulerThread,
@@ -146,6 +151,7 @@ impl Eval {
 struct Stack {}
 
 impl Stack {
+
     #[inline(always)]
     fn push(
         thread: &mut EulerThread,
@@ -170,6 +176,7 @@ impl Stack {
 struct Scope {}
 
 impl Scope {
+
     #[inline(always)]
     fn set(
         thread: &mut EulerThread,
