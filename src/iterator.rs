@@ -1,10 +1,20 @@
 
 // Imports
 use std::mem::swap;
+use std::sync::mpsc;
 
 // Modules
 use crate::bytecode::{ ByteCode, Operation };
 use crate::types::{ EulerString };
+
+//##########################################################################################################################
+
+type Shared = (usize, usize, isize);
+
+pub struct Channel {
+    tx: mpsc::Sender<Shared>,
+    rx: mpsc::Receiver<Shared>
+}
 
 //##########################################################################################################################
 
@@ -37,10 +47,13 @@ type ThreadError = (u8, String);
 //##########################################################################################################################
 
 pub struct EulerThread<'a> {
-    pub bytecode: &'a ByteCode,
-    pub error: Option<ThreadError>,
-    alive: bool,
+    pub pid: usize,
+    pub scheduler: Channel,
     index: usize,
+    bytecode: &'a ByteCode,
+    error: Option<ThreadError>,
+    alive: bool,
+    wait: bool,
     scope: ThreadScope
 }
 
@@ -48,24 +61,37 @@ impl<'a> EulerThread<'a> {
 
     #[inline]
     pub fn new(
-        bytecode: &'a ByteCode,
-        index: usize
+        pid: usize,
+        scheduler: Channel,
+        index: usize,
+        bytecode: &'a ByteCode
     ) -> Self {
         EulerThread::<'a> {
+            pid: pid,
+            scheduler: scheduler,
+            index: index,
             bytecode: bytecode,
             error: None,
             alive: true,
-            index: index,
+            wait: false,
             scope: ThreadScope::new(None)
         }
     }
+}
+
+//##########################################################################################################################
+
+impl EulerThread<'_> {
 
     #[inline]
     pub fn fold(&mut self) -> isize {
         let mut scope = ThreadScope::new(None);
         swap(&mut scope, &mut self.scope); // extract scope from borrow
-        let parent = Box::new((self.index, scope));
-        self.scope = ThreadScope::new(Some(parent));
+        let stack = scope.stack; // store stack
+        self.scope = ThreadScope::new(
+            Some(Box::new((self.index, scope)))
+        );
+        self.scope.stack = stack; // assign stack
         self.index = 0;
         0
     }
@@ -76,8 +102,8 @@ impl<'a> EulerThread<'a> {
         swap(&mut opt_parent, &mut self.scope.parent);  // Extract parent scope from borrow
         if let Some(parent) = opt_parent {
             let (index, scope) = *parent;
-            self.index = index;
             self.scope = scope;
+            self.index = index;
             0
         } else {1}
     }
@@ -107,7 +133,9 @@ impl<'a> EulerThread<'a> {
     #[inline]
     pub fn raise(&mut self, message: String) -> isize {
         self.exit();
-        self.error = Some((self.index as u8, message));
+        self.error = Some(
+            (self.index as u8, message)
+        );
         0
     }
 
@@ -158,7 +186,12 @@ impl Eval {
             16 => Fun::start(thread, *arg),
             17 => Fun::end(thread),
             18 => Fun::call(thread, *arg),
-            19 => Error::raise(thread),
+            19 => Fun::apply(thread),
+            20 => Scheduler::pid(thread),
+            21 => Scheduler::spawn(thread, *arg),
+            22 => Scheduler::send(thread),
+            23 => Scheduler::receive(thread),
+            24 => Error::raise(thread),
              _ => Error::inop(thread),
         }
     }
@@ -172,16 +205,18 @@ impl Error {
 
     #[inline]
     pub fn raise(thread: &mut EulerThread) -> isize {
-        let str_ptr = Stack::pop(thread);
-        let message = EulerString::get(str_ptr); // get string from pointer in stack top
-        thread.raise(message); // raise error with custom message string
+        let top = Stack::pop(thread); // get string pointer in stack top
+        thread.raise(
+            EulerString::get(top)
+        );
         1
     }
 
     #[inline]
     pub fn inop(thread: &mut EulerThread) -> isize {
-        let message = String::from("invalid operation");
-        thread.raise(message); // raise error for invalid operations
+        thread.raise(
+            String::from("invalid operation")
+        );
         1
     }
 }
@@ -365,13 +400,14 @@ impl Fun {
 
     #[inline]
     pub fn end(thread: &mut EulerThread) -> isize {
-        let val = Stack::pop(thread); // get top of stack
+        let top = Stack::pop(thread); // get top of stack
         if thread.unfold() == 0 {
-            Stack::push(thread, val); // push function return to top of stack
+            Stack::push(thread, top); // push function return to top of stack
             thread.next() // go to [next]
         } else {
-            let message = String::from("return called with no parent scope");
-            thread.raise(message);
+            thread.raise(
+                String::from("return called with no parent scope")
+            );
             1
         }
     }
@@ -381,6 +417,84 @@ impl Fun {
         thread.fold(); // crate new scope
         thread.goto(arg as usize); // go to [start + 1]
         0
+    }
+
+    #[inline]
+    pub fn apply(thread: &mut EulerThread) -> isize {
+        thread.fold(); // crate new scope
+        let top = Stack::pop(thread);
+        thread.goto(top as usize); // go to [start + 1]
+        0
+    }
+}
+
+//##########################################################################################################################
+
+struct Scheduler {}
+
+impl Scheduler {
+
+    #[inline]
+    pub fn pid(thread: &mut EulerThread) -> isize {
+        Stack::push(thread, thread.pid as isize);
+        thread.next()
+    }
+
+    #[inline]
+    pub fn spawn(thread: &mut EulerThread, arg: isize) -> isize {
+        if !thread.wait {
+            thread.scheduler.tx.send(
+                (thread.pid, 0, arg)
+            ).unwrap();
+        };
+        thread.wait = true;
+        match thread.scheduler.rx.try_recv() {
+            Err(mpsc::TryRecvError::Empty) => 0,
+            Err(mpsc::TryRecvError::Disconnected) => {
+                Stack::push(thread, -1);
+                thread.wait = false;
+                thread.next()
+            },
+            Ok((0, _, pid)) => {
+                Stack::push(thread, pid);
+                thread.wait = false;
+                thread.next()
+            },
+            Ok(_) => {
+                Stack::push(thread, -1);
+                thread.wait = false;
+                thread.next()
+            },
+        }
+    }
+
+    #[inline]
+    pub fn send(thread: &mut EulerThread) -> isize {
+        let val = Stack::pop(thread);
+        let pid = Stack::pop(thread);
+        thread.scheduler.tx.send(
+            (thread.pid, pid as usize, val)
+        ).unwrap();
+        thread.next()
+    }
+
+    #[inline]
+    pub fn receive(thread: &mut EulerThread) -> isize {
+        thread.wait = true;
+        match thread.scheduler.rx.try_recv() {
+            Err(mpsc::TryRecvError::Empty) => 0,
+            Err(mpsc::TryRecvError::Disconnected) => {
+                Stack::push(thread, 1);
+                thread.wait = false;
+                thread.next()
+            },
+            Ok((_, _, val)) => {
+                Stack::push(thread, val);
+                Stack::push(thread, 0);
+                thread.wait = false;
+                thread.next()
+            },
+        }
     }
 }
 
