@@ -1,57 +1,62 @@
 
+// Modules
 use crate::bytecode::{
     ByteCode,
-    Instruction
+    Operation
 };
 
-type ParentScope = Box<(usize, ThreadScope)>;
+//##########################################################################################################################
 
-struct ThreadScope {
+type ParentScope = Box<(usize, Scope)>;
+
+struct Scope {
     parent: Option<ParentScope>,
-    names: Box<[isize; 256]>,
+    names: [isize; 256],
     block: [u8; 32],
     stack: [isize; 8],
     flags: [u8; 4],
-    blen: u8,
-    slen: u8
+    b: u8,
+    s: u8
 };
 
-impl ThreadScope {
+impl Scope {
     pub fn new(
         parent: Option<ParentScope>
     ) -> Self {
-        ThreadScope {
+        Scope {
             parent: parent,
-            names: box [0; 256],
+            names: [0; 256],
             block: [0; 32],
             stack: [0; 8],
             flags: [0; 4],
-            blen: 0,
-            slen: 0
+            b: 0,
+            s: 0
         }
     }
 };
 
-type ThreadError = (usize, &str);
+type ThreadError = (u8, &str);
 
-struct GreenThread {
+//##########################################################################################################################
+
+struct EulerThread {
     alive: bool,
     index: usize,
     bytecode: &ByteCode,
-    scope: ThreadScope,
+    scope: Scope,
     error: Option<ThreadError>
 };
 
-impl GreenThread {
+impl EulerThread {
     pub fn new(
         bytecode: &ByteCode,
         index: usize
     ) -> Self {
-        GreenThread {
+        EulerThread {
             alive: true,
             index: index,
             bytecode: bytecode,
-            scope: ThreadScope::new(None),
+            scope: Scope::new(None),
             error: None
         }
     }
@@ -77,21 +82,22 @@ impl GreenThread {
     #[inline(always)]
     pub fn eval(&mut self) -> Self {
         if !self.alive {return self};
-        if let Some(instr)=self.read() {
-            Eval::instruction(self, instr);
-        };
+        if let Some(op)=self.read() { Eval::operation(self, op) };
         self
     }
 };
 
+//##########################################################################################################################
+
 struct Eval {};
+
 impl Eval {
     #[inline(always)]
-    fn instruction(
+    fn operation(
         thread: &mut EulerThread,
-        instruction: Instruction
+        operation: Operation
     ) -> isize {
-        let (bytecode, arg) = instruction;
+        let (bytecode, arg) = operation;
         match bytecode {
             0 => Stack::push(thread, arg),
             1 => Stack::pop(thread),
@@ -112,7 +118,7 @@ impl Eval {
             92 => Fun::end(thread),
             93 => Fun::return(thread),
             94 => Fun::call(thread, arg),
-            _ => Eval::error(thread, "invalid instruction"),
+            _ => Eval::error(thread, "invalid operation"),
         }
     }
  
@@ -135,19 +141,18 @@ impl Eval {
     }
 };
 
+//##########################################################################################################################
+
 struct Stack {}
+
 impl Stack {
     #[inline(always)]
     fn push(
         thread: &mut EulerThread,
         arg: isize
     ) -> isize {
-        thread.scope.slen = (
-            thread.scope.slen + 1
-        );
-        thread.scope.stack[
-            thread.scope.slen
-        ] = arg;
+        thread.scope.s = thread.scope.s + 1;
+        thread.scope.stack[thread.scope.s - 1] = arg;
         arg
     }
 
@@ -155,25 +160,22 @@ impl Stack {
     fn pop(
         thread: &mut EulerThread
     ) -> isize {
-        thread.scope.slen = (
-            thread.scope.slen - 1
-        );
-        thread.scope.stack[
-            thread.scope.slen + 1
-        ]
+        thread.scope.s = thread.scope.s - 1;
+        thread.scope.stack[thread.scope.s + 1]
     }
 };
 
+//##########################################################################################################################
+
 struct Scope {}
+
 impl Scope {
     #[inline(always)]
     fn set(
         thread: &mut EulerThread,
         arg: isize
     ) -> isize {
-        thread.scope.names[arg as u8] = (
-            Stack.pop(thread)
-        );
+        thread.scope.names[arg as u8] = Stack::pop(thread);
         arg
     }
 
@@ -182,8 +184,9 @@ impl Scope {
         thread: &mut EulerThread,
         arg: isize
     ) -> isize {
-        Stack.push(thread,
-            thread.scope.names[arg as u8]
-        )
+        let val = thread.scope.names[arg as u8];
+        Stack::push(thread, val)
     }
 };
+
+//##########################################################################################################################
