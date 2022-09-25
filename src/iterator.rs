@@ -368,13 +368,13 @@ impl Fun {
     #[inline]
     pub fn end(thread: &mut EulerThread) -> isize {
         let val = Stack::pop(thread); // get top of stack
-        if thread.unfold() != 0 {
+        if thread.unfold() == 0 {
+            Stack::push(thread, val); // push function return to top of stack
+            thread.next() // go to [next]
+        } else {
             let message = String::from("return called with no parent scope");
             thread.raise(message);
             1
-        } else {
-            Stack::push(thread, val); // push function return to top of stack
-            thread.next() // go to [next]
         }
     }
 
