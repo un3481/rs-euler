@@ -1,4 +1,7 @@
 
+// Imports
+use std::mem::swap;
+
 // Modules
 use crate::bytecode::{ ByteCode, Operation };
 use crate::types::{ EulerString };
@@ -63,7 +66,9 @@ impl<'a> EulerThread<'a> {
 
     #[inline]
     pub fn fold(&mut self) -> isize {
-        let parent = Box::new((self.index, self.scope));
+        let mut scope = ThreadScope::new(None);
+        swap(&mut scope, &mut self.scope); // extract scope from borrow
+        let parent = Box::new((self.index, scope));
         self.scope = ThreadScope::new(Some(parent));
         self.index = 0;
         0
@@ -71,7 +76,9 @@ impl<'a> EulerThread<'a> {
 
     #[inline]
     pub fn unfold(&mut self) -> isize {
-        if let Some(parent) = self.scope.parent {
+        let mut opt_parent: Option<ParentScope> = None;
+        swap(&mut opt_parent, &mut self.scope.parent);  // Extract parent scope from borrow
+        if let Some(parent) = opt_parent {
             let (index, scope) = *parent;
             self.index = index;
             self.scope = scope;
