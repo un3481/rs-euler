@@ -22,5 +22,9 @@ pub enum Code {
     FunStart,
     FunEnd,
     FunCall,
+    SchedulerPid,
+    SchedulerSpawn,
+    SchedulerSend,
+    SchedulerReceive,
     ErrorRaise,
 }
