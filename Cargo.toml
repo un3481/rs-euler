@@ -8,3 +8,7 @@ edition = "2018"
 name = "euler_tools"
 path = "src/lib.rs"
 crate-type = ["dylib"]
+
+[dependencies]
+rayon = "1.5"
+num_cpus = "1.13.1"
